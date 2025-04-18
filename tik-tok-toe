@@ -6,35 +6,49 @@ import json
 import os
 
 class Leaderboard:
-    def __init__(self, filename='leaderboard.json'):
-        self.filename = filename
-        self.leaderboard = []
-        self.load_leaderboard()
-        
     def __init__(self, mode="pvai"):
         self.filename = f"leaderboard_{mode}.json"
-        
+        self.leaderboard = []
+        self.load_leaderboard()
 
     def load_leaderboard(self):
         if os.path.exists(self.filename):
-            with open(self.filename, 'r') as f:
-                self.leaderboard = json.load(f)
+            try:
+                with open(self.filename, 'r') as f:
+                    self.leaderboard = json.load(f)
+            except json.JSONDecodeError:
+                self.leaderboard = []
 
     def save_leaderboard(self):
         with open(self.filename, 'w') as f:
             json.dump(self.leaderboard, f, indent=2)
 
     def add_score(self, player_name, score):
-        self.leaderboard.append({
-            'name': player_name,
-            'score': score
-        })
-        self.leaderboard.sort(key=lambda x: x['score'], reverse=True)
-        self.leaderboard = self.leaderboard[:10]
+        player = next((p for p in self.leaderboard if p['name'] == player_name), None)
+        if player:
+            player['score'] += score
+            player['games_played'] += 1
+        else:
+            self.leaderboard.append({
+                'name': player_name,
+                'score': score,
+                'games_played': 1
+            })
         self.save_leaderboard()
 
     def get_leaderboard(self):
         return self.leaderboard
+
+    def get_average_stats(self):
+        return sorted([
+            {
+                'name': entry['name'],
+                'average': entry['score'] / entry['games_played'],
+                'games_played': entry['games_played']
+            }
+            for entry in self.leaderboard if entry['games_played'] > 0
+        ], key=lambda x: x['average'], reverse=True)[:5]
+
     
 
 class Player:
@@ -206,12 +220,19 @@ class HomePage(tk.Toplevel):
         game_window = GameWindow(self, ai_mode)
         game_window.mainloop()
     
+    def get_sorted_leaderboard(self):
+        return sorted(self.leaderboard, key=lambda x: x['score'], reverse=True)
+        
+        scores = Leaderboard().get_sorted_leaderboard()
+
+
     def show_leaderboard(self):
         leaderboard_window = tk.Toplevel(self)
         leaderboard_window.title("Leaderboard")
         leaderboard_window.geometry("300x400")
         
-        scores = Leaderboard().get_leaderboard()
+        scores = sorted(Leaderboard().get_leaderboard(), key=lambda x: x['score'], reverse=True)
+
         
         tk.Label(leaderboard_window, 
                 text="Top Scores - Player vs AI",
@@ -462,21 +483,26 @@ class GameWindow(tk.Tk):
 
     def show_leaderboard(self):
         leaderboard_window = tk.Toplevel(self)
-        leaderboard_window.title("Leaderboard - Player vs AI")
-        
-        scores = self.leaderboard.get_leaderboard()
-        
+        leaderboard_window.title("Leaderboard")
+        leaderboard_window.geometry("300x400")
+
+        # Load and sort scores by descending score
+        scores = sorted(Leaderboard().get_leaderboard(), key=lambda x: x['score'], reverse=True)
+
         tk.Label(leaderboard_window, 
                 text="Top Scores - Player vs AI",
                 font=font.Font(size=14, weight='bold')).pack(pady=10)
-        
+
         if not scores:
             tk.Label(leaderboard_window, text="No scores yet!").pack()
         else:
             for i, entry in enumerate(scores, 1):
                 tk.Label(leaderboard_window,
-                       text=f"{i}. {entry['name']}: {entry['score']} wins",
-                       font=font.Font(size=12)).pack(pady=2)
+                         text=f"{i}. {entry['name']}: {entry['score']} wins",
+                         font=font.Font(size=12)).pack(pady=2)
+                scores = sorted(...)[0:10]
+
+
 
     def new_series(self):
         if messagebox.askyesno("New Series", "Start a new series?"):
@@ -541,4 +567,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
