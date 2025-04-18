@@ -1,0 +1,163 @@
+# Assignment: Programming for Data Analytics Final Project: Game of Dice
+# Name: Flloyd Mullings 9910966
+# Program Ojective: The program provides an application that provides the user with a game where three dice are
+#                   rolled and the total number generated is guessed to find winner if guessed number equals dice
+#                   roll.
+import random
+import statistics
+import pygame
+import sys
+from tkinter import Tk
+from tkinter.filedialog import askopenfilename
+
+Tk().withdraw()
+image_path = askopenfilename(title="Choose", filetypes=[("image", "*.png *.jpg")])
+
+# Initializing pygame and sound
+pygame.init()
+pygame.mixer.init()
+
+surface = pygame.display.set_mode((630, 360))
+
+screen_width, screen_height = 630, 360
+screen = pygame.display.set_mode((screen_width, screen_height))
+pygame.display.set_caption("Dice Rolling Lottery Game")
+
+# Loading Images
+back_ground = pygame.image.load('image/game_bg.png')
+
+# Loading Sounds
+game_starting = pygame.mixer.Sound('game_sound/game_start.wav')
+game_starting.play()
+
+# User-defined function for analytics and dice roll
+def roll_dice():
+    """
+    Rolls dice and returns the sum of the results.
+    This function generates three numbers between 1 and 6 and return their total.
+    """
+    dice = [random.randint(1, 6) for _ in range(3)]
+    return sum(dice), dice
+
+def calculate_analytics(scores):
+    """
+    Calculates basic descriptive analytics for a list of scores.
+    Returns mean, median, mode, min, max, and range of the scores.
+    """
+    if len(scores) == 0:
+        return None, None, None, None, None, None
+    
+    mean = statistics.mean(scores)
+    median = statistics.median(scores)
+    try:
+        mode = statistics.mode(scores)
+    except statistics.StatisticsError:
+        mode = "No Unique Mode"
+    
+    min_score = min(scores)
+    max_score = max(scores)
+    score_range = max_score - min_score
+    return mean, median, mode, min_score, max_score, score_range
+
+# Establishing Gane class
+class DiceGame:
+    def __init__(self):
+        self.score = 0
+        self.total_score = 0
+        self.rounds_played = 0
+        self.scores = []
+    
+    def play_round(self):
+        """
+        Plays one round of the game.  The user guesses the sum of three dice rolls.
+        The actual sum is calculated and compared with the user's guess.
+        """
+        print("\nWelcome to the Dice Rolling Lottery Game!")
+        
+        try:
+            guess = int(input("Guess The Sum (Between 3 and 18) of Three Dice Rolls:  "))
+            if guess < 3 or guess > 18:
+                print("Invalid Input! Please guess a number between 3 and 18.")
+                return
+            
+            total, dice = roll_dice()
+            print(f"The dice rolled: {dice}")
+            print(f"Sum of dice rolls: {total}")
+            
+            if guess == total:
+                print("Congratulations! You have won J$1000.")
+                self.score = 1000
+                game_win = pygame.mixer.Sound('game_sound/win.wav')
+                game_win.play()
+            else:
+                print(f"Sorry, you have guessed wrong.  The correct sum was {total}.")
+                self.score = 0
+                game_lost = pygame.mixer.Sound('game_sound/lost.wav')
+                game_lost.play()
+                
+            self.total_score += self.score
+            self.rounds_played += 1
+            self.scores.append(self.score)
+        except ValueError:
+            print("Invalid Input! Please and a valid number.")
+            
+    def show_analytics(self):
+        """
+        Display's the users analytics
+        """
+        mean, median, mode, min_score, max_score, score_range = calculate_analytics(self.scores)
+        
+        print("\nGame Statistics: ")
+        print(f"Total rounds played: {self.rounds_played}")
+        print(f"Total score: J${self.total_score}")
+        print(f"Average score: J${self.total_score / self.rounds_played if self.rounds_played > 0 else 'N/A'}")
+        print(f"Mean score: J${mean}")
+        print(f"Median score: J${median}")
+        print(f"Mode score: J${mode}")
+        print(f"Minimum score: J${min_score}")
+        print(f"Maximum score: J${max_score}")
+        print(f"Score range: J${score_range}")
+            
+    def show_menu(self):
+        """
+        Displays the menu to the user.
+        """
+        print("\nGame Menu:")
+        print("Press [1] to Play a New Round")
+        print("Press [2] to Show Game Statistics")
+        print("Press [3] to Exit")
+    
+    def run_game(self):
+        """
+        Runs the main game loop.
+        """
+        while True:
+            self.show_menu()
+            
+            try:
+                choice = int(input("Enter Choice:  "))
+                
+                if choice == 1:
+                    lets_play = pygame.mixer.Sound('game_sound/dice_roll.wav')
+                    lets_play.play()
+                    self.play_round()                    
+                elif choice == 2:
+                    self.show_analytics()
+                elif choice == 3:
+                    print("Thanks for playing! Goodbye!")
+                    break
+                else:
+                    print("Invalid Choice. Please try again")
+            
+            except ValueError:
+                print("Invalid Input. Please enter a number corresponding to the menu options")
+
+screen.blit(back_ground, (0, 0))                    
+pygame.display.update()
+pygame.display.flip()
+
+if __name__ == "__main__":
+    game = DiceGame()
+    game.run_game()
+    
+
