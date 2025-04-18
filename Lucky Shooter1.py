@@ -2,160 +2,208 @@ import pygame
 import random
 import sys
 import time
+import statistics
 
 # Initialize Pygame
 pygame.init()
 
-# Screen setup
+# Screen dimensions
 WIDTH, HEIGHT = 800, 600
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("Galactic Fortune")
-clock = pygame.time.Clock()
-
-# Fonts
-def get_font(size):
-    return pygame.font.SysFont(None, size)
 
 # Colors
 WHITE = (255, 255, 255)
 RED = (255, 0, 0)
 GREEN = (0, 255, 0)
-YELLOW = (255, 255, 0)
 CYAN = (0, 255, 255)
-BLACK = (0, 0, 0)
-BOSS_LASER_COLOR = (255, 50, 50)
+YELLOW = (255, 255, 0)
+BOSS_LASER_COLOR = (255, 100, 100)
+
+# Utility functions for loading
+def load_image(path, size=None):
+    try:
+        img = pygame.image.load(path)
+        if size:
+            img = pygame.transform.scale(img, size)
+        return img
+    except pygame.error as e:
+        print(f"Error loading image {path}: {e}")
+        return pygame.Surface((50, 50))  # fallback
+
+def load_sound(path):
+    try:
+        return pygame.mixer.Sound(path)
+    except pygame.error as e:
+        print(f"Error loading sound {path}: {e}")
+        return None
 
 # Load assets
-player_img = pygame.transform.scale(pygame.image.load("assets/images/player.png"), (50, 50))
-enemy_img = pygame.transform.scale(pygame.image.load("assets/images/enemy.png"), (50, 50))
-bullet_img = pygame.transform.scale(pygame.image.load("assets/images/bullet.png"), (5, 10))
-boss_img = pygame.transform.scale(pygame.image.load("assets/images/enemy.png"), (100, 100))
-background_img = pygame.transform.scale(pygame.image.load("assets/images/background.jpg"), (WIDTH, HEIGHT))
+player_img = load_image("assets/images/player.png", (50, 50))
+enemy_img = load_image("assets/images/enemy.png", (50, 50))
+bullet_img = load_image("assets/images/bullet.png", (5, 10))
+boss_img = load_image("assets/images/enemy.png", (100, 100))
+background_img = load_image("assets/images/background.jpg", (WIDTH, HEIGHT))
 
-# Sounds
-shoot_sound = pygame.mixer.Sound("assets/sounds/shoot.mp3")
-explosion_sound = pygame.mixer.Sound("assets/sounds/explosion.wav")
-dice_roll_sound = pygame.mixer.Sound("assets/sounds/dice_roll.wav")
-pygame.mixer.music.load("assets/sounds/background_music.mp3")
-pygame.mixer.music.play(-1)
+# Load dice images
+dice_images = [load_image(f"assets/images/dice_{i}.png", (60, 60)) for i in range(1, 7)]
 
-# Variables
+shoot_sound = load_sound("assets/sounds/shoot.mp3")
+explosion_sound = load_sound("assets/sounds/explosion.wav")
+dice_roll_sound = load_sound("assets/sounds/dice_roll.wav")
+try:
+    pygame.mixer.music.load("assets/sounds/background_music.mp3")
+    pygame.mixer.music.play(-1)
+except:
+    print("Background music failed to load.")
+
+# Game constants and initialization
 player = pygame.Rect(WIDTH // 2, HEIGHT - 60, 50, 50)
 player_speed = 5
-player_health = 100
-
-bullets = []
 bullet_speed = 7
 bullet_cooldown = 0.3
 last_bullet_time = 0
 
+bullets = []
 enemies = []
-enemy_speed = 2
-
 score = 0
-last_dice_draw = 0
-
+player_health = 100
 boss = None
 boss_health = 100
 boss_direction = 1
-boss_speed = 2
+boss_speed = 3
 boss_bullets = []
-boss_attack_cooldown = 2
+boss_attack_cooldown = 1.5
 last_boss_attack_time = 0
 
-space_start_time = time.time()
+# Power-up flag
+power_up_active = False
+
+# Dice mode flags
+last_dice_draw = 0
+dice_result = None
+dice_timer_start = 0
+
+# Stats
+damage_values = []
+
+# Fonts
+font = pygame.font.SysFont("arial", 32)
+
+# Clock
+clock = pygame.time.Clock()
 
 # Game states
 SPACE_MODE = "space"
 DICE_MODE = "dice"
+GAME_OVER = "over"
 VICTORY = "victory"
-GAME_OVER = "game_over"
 game_mode = SPACE_MODE
-dice_result = None
 
-def draw_text(text, x, y, color=WHITE, center=True, font_size=36, shadow=True):
-    font_obj = get_font(font_size)
-    img = font_obj.render(text, True, color)
-    rect = img.get_rect()
-    rect.center = (x, y) if center else rect.topleft
 
-    if shadow:
-        shadow_img = font_obj.render(text, True, BLACK)
-        shadow_rect = rect.copy()
-        shadow_rect.x += 2
-        shadow_rect.y += 2
-        screen.blit(shadow_img, shadow_rect)
+def draw_text(text, x, y, color=WHITE, font_size=32, center=True):
+    font_obj = pygame.font.SysFont("arial", font_size)
+    render = font_obj.render(text, True, color)
+    rect = render.get_rect()
+    if center:
+        rect.center = (x, y)
+    else:
+        rect.topleft = (x, y)
+    screen.blit(render, rect)
 
-    screen.blit(img, rect)
+
+def draw_player():
+    if power_up_active:
+        pygame.draw.ellipse(screen, YELLOW, player.inflate(20, 20), 3)
+    screen.blit(player_img, player)
+
 
 def draw_health_bar(x, y, health, max_health):
     pygame.draw.rect(screen, RED, (x, y, 100, 10))
-    pygame.draw.rect(screen, GREEN, (x, y, max(0, 100 * health // max_health), 10))
+    pygame.draw.rect(screen, GREEN, (x, y, 100 * (health / max_health), 10))
+
 
 def spawn_enemy():
-    return pygame.Rect(random.randint(0, WIDTH - 50), random.randint(-100, -40), 50, 50)
+    x = random.randint(0, WIDTH - 40)
+    return pygame.Rect(x, 0, 40, 40)
 
-def roll_dice():
-    dice_roll_sound.play()
-    return random.randint(1, 6), random.randint(1, 6)
 
 def handle_dice_roll():
-    global player_health
-    d1, d2 = roll_dice()
+    global power_up_active, player_health
+    if dice_roll_sound:
+        dice_roll_sound.play()
+    d1, d2 = random.randint(1, 6), random.randint(1, 6)
     total = d1 + d2
-    reward = ""
-
     if total == 7:
-        reward = "LUCKY SEVEN! +30 Health"
+        power_up_active = True
         player_health = min(player_health + 30, 100)
-    elif total in [5, 6, 8, 9]:
-        reward = "Good Roll! +20 Health"
-        player_health = min(player_health + 20, 100)
+        return d1, d2, total, "Lucky Seven! +30 Health + Shield!"
     else:
-        reward = "Basic Roll. +10 Health"
-        player_health = min(player_health + 10, 100)
+        return d1, d2, total, "No bonus."
 
-    return d1, d2, total, reward
+
+def damage_player(dmg):
+    global player_health, game_mode, power_up_active, damage_values
+    if power_up_active:
+        power_up_active = False
+        return
+    player_health -= dmg
+    damage_values.append(dmg)
+    if player_health <= 0:
+        game_mode = GAME_OVER
+
+
+def show_stats():
+    if damage_values:
+        stats_texts = [
+            f"Total Hits Taken: {len(damage_values)}",
+            f"Mean Damage: {statistics.mean(damage_values):.1f}",
+            f"Max Damage: {max(damage_values)}",
+            f"Min Damage: {min(damage_values)}",
+            f"Damage Range: {max(damage_values) - min(damage_values)}",
+        ]
+        for i, text in enumerate(stats_texts):
+            draw_text(text, WIDTH // 2, 400 + i * 30, font_size=24)
+
 
 def check_collisions():
-    global enemies, bullets, score, boss_health, game_mode
+    global enemies, bullets, score, boss_health, game_mode, boss, boss_bullets
 
     for enemy in enemies[:]:
         for bullet in bullets[:]:
-            if enemy.colliderect(bullet):
+            if enemy.colliderect(bullet['rect']):
                 enemies.remove(enemy)
                 bullets.remove(bullet)
                 score += 10
-                explosion_sound.play()
+                if explosion_sound:
+                    explosion_sound.play()
                 break
-
         if enemy.colliderect(player):
             enemies.remove(enemy)
             damage_player(20)
 
     if boss:
         for bullet in bullets[:]:
-            if boss.colliderect(bullet):
+            if boss and boss.colliderect(bullet['rect']):
                 bullets.remove(bullet)
-                boss_health -= 5
-                explosion_sound.play()
+                boss_health -= 10 if power_up_active else 5
+                if explosion_sound:
+                    explosion_sound.play()
                 if boss_health <= 0:
+                    score += 100
+                    boss = None
                     game_mode = VICTORY
+                    return
 
         for bb in boss_bullets[:]:
             if player.colliderect(bb):
                 boss_bullets.remove(bb)
                 damage_player(15)
 
-def damage_player(dmg):
-    global player_health, game_mode
-    player_health -= dmg
-    if player_health <= 0:
-        game_mode = GAME_OVER
 
 def main():
     global bullets, last_bullet_time, enemies, score, boss, boss_health, boss_direction, last_dice_draw
-    global game_mode, dice_result, boss_bullets, last_boss_attack_time, dice_timer_start
+    global game_mode, dice_result, boss_bullets, last_boss_attack_time, dice_timer_start, power_up_active
 
     running = True
     while running:
@@ -168,33 +216,29 @@ def main():
                 running = False
 
         if game_mode == SPACE_MODE:
-            # Movement
             if keys[pygame.K_LEFT] and player.left > 0:
                 player.x -= player_speed
             if keys[pygame.K_RIGHT] and player.right < WIDTH:
                 player.x += player_speed
 
-            # Shooting
             if keys[pygame.K_SPACE] and current_time - last_bullet_time > bullet_cooldown:
-                bullet = pygame.Rect(player.centerx - 2, player.top - 10, 4, 20)
-                bullets.append(bullet)
-                shoot_sound.play()
+                bullet_rect = pygame.Rect(player.centerx - 5, player.top - 15, 10, 25) if power_up_active else pygame.Rect(player.centerx - 2, player.top - 10, 4, 20)
+                color = RED if power_up_active else CYAN
+                bullets.append({'rect': bullet_rect, 'color': color})
+                if shoot_sound:
+                    shoot_sound.play()
                 last_bullet_time = current_time
 
-            # Bullet movement
             for bullet in bullets:
-                bullet.y -= bullet_speed
-            bullets = [b for b in bullets if b.y > 0]
+                bullet['rect'].y -= bullet_speed
+            bullets = [b for b in bullets if b['rect'].y > 0]
 
-            # Enemy logic
             if random.random() < 0.02:
                 enemies.append(spawn_enemy())
-
             for enemy in enemies:
-                enemy.y += enemy_speed
+                enemy.y += 3
             enemies = [e for e in enemies if e.y < HEIGHT]
 
-            # Boss logic
             if score >= 1000:
                 if not boss:
                     boss = pygame.Rect(WIDTH // 2 - 50, 50, 100, 100)
@@ -204,9 +248,7 @@ def main():
                     boss.x += boss_direction * boss_speed
                     if boss.left <= 0 or boss.right >= WIDTH:
                         boss_direction *= -1
-
                     if current_time - last_boss_attack_time > boss_attack_cooldown:
-                        # Larger and more visible boss laser
                         laser = pygame.Rect(boss.centerx - 5, boss.bottom, 10, 25)
                         boss_bullets.append(laser)
                         last_boss_attack_time = current_time
@@ -215,15 +257,11 @@ def main():
                 bb.y += 5
             boss_bullets = [b for b in boss_bullets if b.y < HEIGHT]
 
-            # Draw
-            screen.blit(player_img, player)
-
+            draw_player()
             for bullet in bullets:
-                pygame.draw.rect(screen, CYAN, bullet)
-
+                pygame.draw.rect(screen, bullet['color'], bullet['rect'])
             for enemy in enemies:
                 screen.blit(enemy_img, enemy)
-
             for bb in boss_bullets:
                 pygame.draw.rect(screen, BOSS_LASER_COLOR, bb)
 
@@ -231,14 +269,12 @@ def main():
                 screen.blit(boss_img, boss)
                 draw_health_bar(boss.x, boss.y - 10, boss_health, 100)
 
-            # Enhanced score display
             draw_text(f"Score: {score}", 20, 20, color=YELLOW, center=False, font_size=48)
-
             draw_health_bar(WIDTH - 120, 20, player_health, 100)
 
             check_collisions()
 
-            if score >= last_dice_draw + 500:
+            if score >= last_dice_draw + 250:
                 game_mode = DICE_MODE
                 dice_result = handle_dice_roll()
                 last_dice_draw = score
@@ -248,7 +284,9 @@ def main():
             draw_text("🎲 LUCKY SEVEN BONUS 🎲", WIDTH // 2, 80, font_size=48)
             if dice_result:
                 d1, d2, total, reward = dice_result
-                draw_text(f"You rolled: {d1} + {d2} = {total}", WIDTH // 2, 200)
+                screen.blit(dice_images[d1 - 1], (WIDTH // 2 - 80, 150))
+                screen.blit(dice_images[d2 - 1], (WIDTH // 2 + 20, 150))
+                draw_text(f"{d1} + {d2} = {total}", WIDTH // 2, 230)
                 draw_text(reward, WIDTH // 2, 300)
                 draw_text("Returning to game...", WIDTH // 2, 450)
             if time.time() - dice_timer_start > 3:
@@ -257,10 +295,12 @@ def main():
         elif game_mode == GAME_OVER:
             draw_text("💀 GAME OVER 💀", WIDTH // 2, HEIGHT // 2, font_size=64)
             draw_text(f"Final Score: {score}", WIDTH // 2, HEIGHT // 2 + 50, font_size=48)
+            show_stats()
 
         elif game_mode == VICTORY:
             draw_text("🎉 YOU'VE CONQUERED THE GALAXY! 🎉", WIDTH // 2, HEIGHT // 2, font_size=48)
             draw_text(f"Final Score: {score}", WIDTH // 2, HEIGHT // 2 + 50, font_size=36)
+            show_stats()
 
         pygame.display.flip()
         clock.tick(60)
@@ -268,4 +308,6 @@ def main():
     pygame.quit()
     sys.exit()
 
-main()
+
+if __name__ == "__main__":
+    main()
