@@ -12,7 +12,7 @@ pygame.init()
 
 pygame.mixer.init()
 pygame.mixer.music.load("assets/sounds/background.mp3")
-pygame.mixer.music.play(-1)  # loop bg music
+pygame.mixer.music.play(-1)  
 
 magic_sound = pygame.mixer.Sound("assets/sounds/magic.mp3")
 sword_sound = pygame.mixer.Sound("assets/sounds/sword.mp3")
