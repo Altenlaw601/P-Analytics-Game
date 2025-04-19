@@ -23,7 +23,7 @@ YELLOW = (255, 255, 0)
 BOSS_LASER_COLOR = (255, 100, 100)
 PURPLE = (128, 0, 128)
 
-# Utility functions for loading
+
 def load_image(path, size=None):
     try:
         img = pygame.image.load(path)
@@ -32,8 +32,7 @@ def load_image(path, size=None):
         return img
     except pygame.error as e:
         print(f"Error loading image {path}: {e}")
-        return pygame.Surface((50, 50))  # fallback
-
+        return pygame.Surface((50, 50))  
 def load_sound(path):
     try:
         return pygame.mixer.Sound(path)
@@ -103,7 +102,7 @@ reset_game()
 font = pygame.font.SysFont("arial", 32)
 title_font = pygame.font.SysFont("arial", 64, bold=True)
 
-# Clock
+
 clock = pygame.time.Clock()
 game_mode = MENU
 
