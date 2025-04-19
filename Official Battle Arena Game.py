@@ -1,7 +1,6 @@
 #Gabrielle Levy
 #2102215
 #Battle Arena Game
-
 import pygame
 import random
 import statistics
@@ -12,12 +11,12 @@ import time
 pygame.init()
 
 pygame.mixer.init()
-pygame.mixer.music.load("audio/background.mp3")
+pygame.mixer.music.load("assets/sounds/background.mp3")
 pygame.mixer.music.play(-1)  # loop bg music
 
-magic_sound = pygame.mixer.Sound("audio/magic.mp3")
-sword_sound = pygame.mixer.Sound("audio/sword.mp3")
-shield_sound = pygame.mixer.Sound("audio/shield.mp3")
+magic_sound = pygame.mixer.Sound("assets/sounds/magic.mp3")
+sword_sound = pygame.mixer.Sound("assets/sounds/sword.mp3")
+shield_sound = pygame.mixer.Sound("assets/sounds/shield.mp3")
 
 WIDTH, HEIGHT = 600, 400
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
@@ -26,18 +25,18 @@ font = pygame.font.SysFont("Arial", 20)
 clock = pygame.time.Clock()
 
 # Load Background
-background = pygame.image.load("background.png")  
+background = pygame.image.load("assets/images/Background.png")  
 background = pygame.transform.scale(background, (WIDTH, HEIGHT))
 
 # Colors
 WHITE, BLACK, RED, GREEN, BLUE, YELLOW, PURPLE = (255,255,255), (0,0,0), (255,0,0), (0,255,0), (0,0,255), (255,255,0), (128,0,128)
 
-warrior_image = pygame.transform.scale(pygame.image.load("images/warrior.png"), (50, 50))
-mage_image = pygame.transform.scale(pygame.image.load("images/mage.png"), (50, 50))
-knight_image = pygame.transform.scale(pygame.image.load("images/knight.png"), (50, 50))
-orc_image = pygame.transform.scale(pygame.image.load("images/orc.png"), (50, 50))
-elf_image = pygame.transform.scale(pygame.image.load("images/elf.png"), (50, 50))
-necromancer_image = pygame.transform.scale(pygame.image.load("images/necromancer.png"), (50, 50))
+warrior_image = pygame.transform.scale(pygame.image.load("assets/images/warrior.png"), (50, 50))
+mage_image = pygame.transform.scale(pygame.image.load("assets/images/mage.png"), (50, 50))
+knight_image = pygame.transform.scale(pygame.image.load("assets/images/knight.png"), (50, 50))
+orc_image = pygame.transform.scale(pygame.image.load("assets/images/orc.png"), (50, 50))
+elf_image = pygame.transform.scale(pygame.image.load("assets/images/elf.png"), (50, 50))
+necromancer_image = pygame.transform.scale(pygame.image.load("assets/images/necromancer.png"), (50, 50))
 
 # Fighter class
 class Fighter:
@@ -124,15 +123,13 @@ def draw_fighter(x, y, fighter):
     # Draw the image on top of the white border
     screen.blit(image, (x, y))
 
-
-
 def draw_health_bar(x, y, hp, name):
     pygame.draw.rect(screen, BLACK, (x, y, 100, 10))
     pygame.draw.rect(screen, GREEN, (x, y, max(0, hp), 10))
     text = font.render(f"{name} HP: {hp}", True, WHITE)
     screen.blit(text, (x, y - 20))
 
-def wait_for_key(keys=["space"]):
+def wait_for_key(keys=["space"], allow_menu=False):
     waiting = True
     while waiting:
         for event in pygame.event.get():
@@ -140,6 +137,9 @@ def wait_for_key(keys=["space"]):
             if event.type == pygame.KEYDOWN:
                 if pygame.key.name(event.key) in keys:
                     waiting = False
+                if allow_menu and event.key == pygame.K_m:  # M for menu
+                    return "menu"
+    return None
 
 # Projectiles
 def projectile_animation(start_x, start_y, end_x, end_y, color):
@@ -182,8 +182,10 @@ def lucky_guess(player):
     screen.blit(background, (0,0))
     draw_text(result, 220, 180)
     draw_text("Press SPACE to continue", 200, 220)
+    draw_text("Press M for Menu", 200, 250)
     pygame.display.flip()
-    wait_for_key(["space"])
+    result = wait_for_key(["space"], allow_menu=True)
+    return result
 
 # Word scramble mini game
 def scramble_word_challenge():
@@ -220,6 +222,8 @@ def scramble_word_challenge():
                     if input_word == word:
                         success = True
                     return success
+                elif event.key == pygame.K_m:  # M for menu
+                    return "menu"
                 else:
                     input_word += event.unicode
     return success
@@ -227,7 +231,7 @@ def scramble_word_challenge():
 # Battle logic
 def battle(player, enemy):
     lucky_used = False
-    message = "Press A (attack), D (defend), S (special)"
+    message = "Press A (attack), D (defend), S (special), M (Menu)"
     while player.hp > 0 and enemy.hp > 0:
         screen.blit(background, (0,0))
         draw_fighter(100, 200, player)
@@ -246,6 +250,8 @@ def battle(player, enemy):
                     if event.key == pygame.K_a: action = "attack"
                     elif event.key == pygame.K_d: action = "defend"
                     elif event.key == pygame.K_s: action = "special"
+                    elif event.key == pygame.K_m:  # M for menu
+                        return "menu"
 
         symbol = ""
         if action == "attack":
@@ -259,7 +265,10 @@ def battle(player, enemy):
         elif action == "defend":
             shield_sound.play()
             block = player.defend()
-            if scramble_word_challenge():
+            scramble_result = scramble_word_challenge()
+            if scramble_result == "menu":
+                return "menu"
+            if scramble_result:
                 block += 20
                 message = f"Perfect block! +20 bonus block!"
             edmg = max(enemy.attack() - block, 0)
@@ -297,12 +306,17 @@ def battle(player, enemy):
         enemy.color = enemy.original_color
 
         if player.hp <= 50 and not lucky_used:
-            lucky_guess(player)
+            result = lucky_guess(player)
+            if result == "menu":
+                return "menu"
             lucky_used = True
 
         if enemy.hp > 0 and action != "defend":
             projectile_animation(420, 220, 100, 220, RED)
-            if scramble_word_challenge():
+            scramble_result = scramble_word_challenge()
+            if scramble_result == "menu":
+                return "menu"
+            if scramble_result:
                 message = "You blocked perfectly!"
             else:
                 edmg = enemy.attack()
@@ -336,14 +350,17 @@ def show_stats(results):
     draw_text(f"Average Score: {avg:.2f}", 200, 180)
     draw_text(f"Median: {median}  Mode: {mode}", 200, 210)
     draw_text("Press SPACE to continue", 200, 260)
+    draw_text("Press M for Menu", 200, 290)
     pygame.display.flip()
-    wait_for_key(["space"])
+    result = wait_for_key(["space"], allow_menu=True)
+    return result
 
 def select_rounds():
     while True:
         screen.blit(background, (0,0))
         draw_text("Select number of rounds:", 180, 100)
         draw_text("1) One   2) Three   3) Five", 180, 140)
+        draw_text("Press M for Menu", 180, 180)
         pygame.display.flip()
         for event in pygame.event.get():
             if event.type == pygame.QUIT: pygame.quit(); sys.exit()
@@ -351,12 +368,14 @@ def select_rounds():
                 if event.key == pygame.K_1: return 1
                 elif event.key == pygame.K_2: return 3
                 elif event.key == pygame.K_3: return 5
+                elif event.key == pygame.K_m: return "menu"
 
 def select_character():
     while True:
         screen.blit(background, (0,0))
         draw_text("Select Your Character:", 170, 100)
         draw_text("1) Warrior   2) Mage   3) Knight", 170, 140)
+        draw_text("Press M for Menu", 170, 180)
         pygame.display.flip()
         for event in pygame.event.get():
             if event.type == pygame.QUIT: pygame.quit(); sys.exit()
@@ -373,27 +392,24 @@ def select_character():
                     f = Fighter("Knight", BLUE, (12, 18), (8, 14), (20, 30))
                     f.character_type = "Knight"
                     return f
+                elif event.key == pygame.K_m:
+                    return "menu"
 
 def show_storyline(character):
     screen.blit(background, (0, 0))
     
-    # Storyline for Warrior
     if character.name == "Warrior":
         storyline = (
             "In the land of Eldoria, the Warrior sets out on a journey to defeat the Dark Legion. "
             "With his sword raised high, he seeks to restore peace to the realm. The battle ahead is fierce, "
             "but the Warrior is determined to face the greatest challenges, wielding strength and courage as his allies."
         )
-    
-    # Storyline for Mage
     elif character.name == "Mage":
         storyline = (
             "In the ancient citadel of Arcanis, the Mage uncovers the lost secrets of the magical arts. "
             "Armed with spells of fire and ice, the Mage must overcome the forces of darkness that threaten the land. "
             "With each battle, the Mage grows stronger, unlocking new powers and uncovering the truth of their destiny."
         )
-    
-    # Storyline for Knight
     elif character.name == "Knight":
         storyline = (
             "The Knight, a protector of the kingdom, embarks on a quest to reclaim the Sacred Relic stolen by a ruthless foe. "
@@ -401,7 +417,6 @@ def show_storyline(character):
             "Every battle won brings him closer to his goal, but the road ahead is fraught with danger."
         )
     
-    # Function to split the storyline into lines that fit on the screen
     def wrap_text(text, font, max_width):
         words = text.split(' ')
         lines = []
@@ -410,7 +425,6 @@ def show_storyline(character):
         for word in words:
             test_line = current_line + ' ' + word if current_line else word
             width, _ = font.size(test_line)
-            
             
             if width <= max_width:
                 current_line = test_line
@@ -422,34 +436,38 @@ def show_storyline(character):
             lines.append(current_line)
         return lines
 
-    # Define the maximum width for text
     max_width = WIDTH - 40  
-    
-    # Wrap the storyline text
     lines = wrap_text(storyline, font, max_width)
     
-    # Draw the wrapped lines on the screen
     y_offset = 100
     for line in lines:
         draw_text(line, 20, y_offset)
         y_offset += 30  
 
     draw_text("Prepare yourself for battle!", 180, y_offset + 20)
+    draw_text("Press SPACE to continue", 180, y_offset + 50)
+    draw_text("Press M for Menu", 180, y_offset + 80)
     pygame.display.flip()
-    wait_for_key(["space"])
-
+    result = wait_for_key(["space"], allow_menu=True)
+    return result
 
 # Main function 
-def main():
+def mains():
     global player, enemy
     running = True
     while running:
         player = select_character()
+        if player == "menu":
+            continue
+        
         rounds = select_rounds()
-
-        # Show the storyline based on the character
-        show_storyline(player)
-
+        if rounds == "menu":
+            continue
+        
+        result = show_storyline(player)
+        if result == "menu":
+            continue
+ 
         results = []
         for r in range(rounds):
             enemy_type = random.choice(["Warrior", "Archer", "Mage"])
@@ -459,21 +477,35 @@ def main():
                 enemy = Enemy("Elf", GREEN, (10, 20), (5, 8), (0, 0), "Elf")
             else:
                 enemy = Enemy("Necromancer", PURPLE, (8, 15), (5, 10), (10, 30), "Necromancer")
-            win = battle(player, enemy)
-            results.append(1 if win else 0)
+            
+            result = battle(player, enemy)
+            if result == "menu":
+                break
+            
+            results.append(1 if result else 0)
             screen.blit(background, (0, 0))
-            draw_text("You Won!" if win else "You Lost!", 250, 180)
+            draw_text("You Won!" if result else "You Lost!", 250, 180)
             draw_text("Press SPACE to continue", 200, 220)
+            draw_text("Press M for Menu", 200, 250)
             pygame.display.flip()
-            wait_for_key(["space"])
+            
+            menu_choice = wait_for_key(["space"], allow_menu=True)
+            if menu_choice == "menu":
+                break
+            
             player.level_up()
-        show_stats(results)
+        
+        if len(results) > 0:
+            result = show_stats(results)
+            if result == "menu":
+                continue
 
         # Play again?
         asking = True
         while asking:
             screen.blit(background, (0, 0))
             draw_text("Play again? Y/N", 220, 180)
+            draw_text("Press M for Menu", 220, 210)
             pygame.display.flip()
             for event in pygame.event.get():
                 if event.type == pygame.QUIT: pygame.quit(); sys.exit()
@@ -483,9 +515,15 @@ def main():
                     elif event.key == pygame.K_n:
                         asking = False
                         running = False
+                    elif event.key == pygame.K_m:
+                        asking = False
+                        break
 
     pygame.quit()
 
+def battle_arena_start():
+    mains()
+
 if __name__ == "__main__":
-    main()
+    mains()
 
