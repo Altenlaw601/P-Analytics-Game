@@ -1,8 +1,4 @@
-# Assignment: Programming for Data Analytics Final Project: Game of Dice
-# Name: Flloyd Mullings 9910966
-# Program Ojective: The program provides an application that provides the user with a game where three dice are
-#                   rolled and the total number generated is guessed to find winner if guessed number equals dice
-#                   roll.
+#Flloyd MUllings
 import random
 import statistics
 import pygame
@@ -10,154 +6,294 @@ import sys
 from tkinter import Tk
 from tkinter.filedialog import askopenfilename
 
-Tk().withdraw()
-image_path = askopenfilename(title="Choose", filetypes=[("image", "*.png *.jpg")])
 
-# Initializing pygame and sound
-pygame.init()
-pygame.mixer.init()
-
-surface = pygame.display.set_mode((630, 360))
-
-screen_width, screen_height = 630, 360
-screen = pygame.display.set_mode((screen_width, screen_height))
-pygame.display.set_caption("Dice Rolling Lottery Game")
-
-# Loading Images
-back_ground = pygame.image.load('image/game_bg.png')
-
-# Loading Sounds
-game_starting = pygame.mixer.Sound('game_sound/game_start.wav')
-game_starting.play()
-
-# User-defined function for analytics and dice roll
-def roll_dice():
-    """
-    Rolls dice and returns the sum of the results.
-    This function generates three numbers between 1 and 6 and return their total.
-    """
-    dice = [random.randint(1, 6) for _ in range(3)]
-    return sum(dice), dice
-
-def calculate_analytics(scores):
-    """
-    Calculates basic descriptive analytics for a list of scores.
-    Returns mean, median, mode, min, max, and range of the scores.
-    """
-    if len(scores) == 0:
-        return None, None, None, None, None, None
-    
-    mean = statistics.mean(scores)
-    median = statistics.median(scores)
-    try:
-        mode = statistics.mode(scores)
-    except statistics.StatisticsError:
-        mode = "No Unique Mode"
-    
-    min_score = min(scores)
-    max_score = max(scores)
-    score_range = max_score - min_score
-    return mean, median, mode, min_score, max_score, score_range
-
-# Establishing Gane class
-class DiceGame:
-    def __init__(self):
-        self.score = 0
+class DiceRollingGame:
+    def __init__(self, analytics=None):
+        self.game_name = "Dice Rolling Lottery"
         self.total_score = 0
         self.rounds_played = 0
         self.scores = []
-    
-    def play_round(self):
-        """
-        Plays one round of the game.  The user guesses the sum of three dice rolls.
-        The actual sum is calculated and compared with the user's guess.
-        """
-        print("\nWelcome to the Dice Rolling Lottery Game!")
-        
-        try:
-            guess = int(input("Guess The Sum (Between 3 and 18) of Three Dice Rolls:  "))
-            if guess < 3 or guess > 18:
-                print("Invalid Input! Please guess a number between 3 and 18.")
-                return
-            
-            total, dice = roll_dice()
-            print(f"The dice rolled: {dice}")
-            print(f"Sum of dice rolls: {total}")
-            
-            if guess == total:
-                print("Congratulations! You have won J$1000.")
-                self.score = 1000
-                game_win = pygame.mixer.Sound('game_sound/win.wav')
-                game_win.play()
-            else:
-                print(f"Sorry, you have guessed wrong.  The correct sum was {total}.")
-                self.score = 0
-                game_lost = pygame.mixer.Sound('game_sound/lost.wav')
-                game_lost.play()
-                
-            self.total_score += self.score
-            self.rounds_played += 1
-            self.scores.append(self.score)
-        except ValueError:
-            print("Invalid Input! Please and a valid number.")
-            
-    def show_analytics(self):
-        """
-        Display's the users analytics
-        """
-        mean, median, mode, min_score, max_score, score_range = calculate_analytics(self.scores)
-        
-        print("\nGame Statistics: ")
-        print(f"Total rounds played: {self.rounds_played}")
-        print(f"Total score: J${self.total_score}")
-        print(f"Average score: J${self.total_score / self.rounds_played if self.rounds_played > 0 else 'N/A'}")
-        print(f"Mean score: J${mean}")
-        print(f"Median score: J${median}")
-        print(f"Mode score: J${mode}")
-        print(f"Minimum score: J${min_score}")
-        print(f"Maximum score: J${max_score}")
-        print(f"Score range: J${score_range}")
-            
-    def show_menu(self):
-        """
-        Displays the menu to the user.
-        """
-        print("\nGame Menu:")
-        print("Press [1] to Play a New Round")
-        print("Press [2] to Show Game Statistics")
-        print("Press [3] to Exit")
-    
-    def run_game(self):
-        """
-        Runs the main game loop.
-        """
-        while True:
-            self.show_menu()
-            
-            try:
-                choice = int(input("Enter Choice:  "))
-                
-                if choice == 1:
-                    lets_play = pygame.mixer.Sound('game_sound/dice_roll.wav')
-                    lets_play.play()
-                    self.play_round()                    
-                elif choice == 2:
-                    self.show_analytics()
-                elif choice == 3:
-                    print("Thanks for playing! Goodbye!")
-                    break
-                else:
-                    print("Invalid Choice. Please try again")
-            
-            except ValueError:
-                print("Invalid Input. Please enter a number corresponding to the menu options")
+        self.high_score = 0
+        self.pygame_initialized = False
+        self.background = None
+        self.dice_images = []
+        self.sounds = {}
+        self.font = None
+        self.title_font = None
+        self.screen = None
+        self.analytics = analytics
 
-screen.blit(back_ground, (0, 0))                    
-pygame.display.update()
-pygame.display.flip()
+    def initialize_pygame(self):
+        if not self.pygame_initialized:
+            pygame.init()
+            pygame.mixer.init()
+            self.screen = pygame.display.set_mode((630, 360))
+            pygame.display.set_caption("Dice Rolling Lottery")
+            self.font = pygame.font.SysFont("Arial", 24)
+            self.title_font = pygame.font.SysFont("Arial", 32, bold=True)
+            self.load_assets()
+            self.pygame_initialized = True
+
+    def load_assets(self):
+        try:
+            self.background = pygame.image.load('assets/images/game_bg.png')
+            self.background = pygame.transform.scale(self.background, (630, 360))
+        except:
+            self.background = pygame.Surface((630, 360))
+            self.background.fill((50, 50, 100))
+
+        try:
+            self.dice_images = [
+                pygame.image.load(f'assets/images/dice_{i}.png')
+                for i in range(1, 7)
+            ]
+            self.dice_images = [pygame.transform.scale(img, (60, 60)) for img in self.dice_images]
+        except:
+            self.dice_images = []
+            for i in range(1, 7):
+                surf = pygame.Surface((60, 60))
+                surf.fill((255, 255, 255))
+                text = self.font.render(str(i), True, (0, 0, 0))
+                surf.blit(text, (30 - text.get_width()//2, 30 - text.get_height()//2))
+                self.dice_images.append(surf)
+
+        sound_files = {
+            'win': 'win.wav',
+            'lose': 'lose.wav',
+            'roll': 'dice_roll.wav',
+            'start': 'game_start.mp3'
+        }
+
+        for sound_name, filename in sound_files.items():
+            try:
+                sound_path = f'assets/sounds/{filename}'
+                if sound_name == 'start':
+                    pygame.mixer.music.load(sound_path)
+                    pygame.mixer.music.play(-1)
+                else:
+                    self.sounds[sound_name] = pygame.mixer.Sound(sound_path)
+            except:
+                self.sounds[sound_name] = None
+
+    def cleanup(self):
+        if self.pygame_initialized:
+            pygame.mixer.music.stop()
+            pygame.quit()
+            self.pygame_initialized = False
+
+    def roll_dice(self):
+        dice_values = [random.randint(1, 6) for _ in range(3)]
+        return sum(dice_values), dice_values
+
+    def draw_text(self, text, x, y, color=(255, 255, 255), font=None, center=True):
+        font = font or self.font
+        text_surface = font.render(text, True, color)
+        text_rect = text_surface.get_rect()
+        if center:
+            text_rect.center = (x, y)
+        else:
+            text_rect.topleft = (x, y)
+        self.screen.blit(text_surface, text_rect)
+        return text_rect
+
+    def show_dice_animation(self, dice_values):
+        for i in range(10):
+            self.screen.blit(self.background, (0, 0))
+            self.draw_text("Rolling...", 315, 100, (255, 255, 0), self.title_font)
+            for j in range(3):
+                random_dice = random.randint(0, 5)
+                self.screen.blit(self.dice_images[random_dice], (200 + j*80, 150))
+            pygame.display.flip()
+            pygame.time.delay(100)
+
+        self.screen.blit(self.background, (0, 0))
+        self.draw_text("Results:", 315, 100, (255, 255, 0), self.title_font)
+        for j in range(3):
+            self.screen.blit(self.dice_images[dice_values[j]-1], (200 + j*80, 150))
+        pygame.display.flip()
+
+    def get_user_guess(self):
+        guess = ""
+        input_active = True
+        input_rect = pygame.Rect(200, 200, 200, 40)
+        color_active = pygame.Color('lightskyblue3')
+        color_passive = pygame.Color('gray15')
+        color = color_passive
+
+        while input_active:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    return None
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    if input_rect.collidepoint(event.pos):
+                        color = color_active
+                    else:
+                        color = color_passive
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_RETURN:
+                        if guess.isdigit() and 3 <= int(guess) <= 18:
+                            input_active = False
+                        else:
+                            guess = ""
+                    elif event.key == pygame.K_BACKSPACE:
+                        guess = guess[:-1]
+                    else:
+                        if event.unicode.isdigit() and len(guess) < 2:
+                            guess += event.unicode
+
+            self.screen.blit(self.background, (0, 0))
+            self.draw_text("Guess the sum (3-18):", 315, 150, (255, 255, 255), self.title_font)
+
+            pygame.draw.rect(self.screen, color, input_rect, 2)
+            text_surface = self.font.render(guess, True, (255, 255, 255))
+            self.screen.blit(text_surface, (input_rect.x + 10, input_rect.y + 10))
+
+            submit_rect = self.draw_text("Submit", 315, 270, (0, 255, 0), self.title_font)
+            pygame.display.flip()
+
+            mouse_pos = pygame.mouse.get_pos()
+            mouse_click = pygame.mouse.get_pressed()
+            if submit_rect.collidepoint(mouse_pos) and mouse_click[0]:
+                if guess.isdigit() and 3 <= int(guess) <= 18:
+                    input_active = False
+
+        return int(guess) if guess else None
+
+    def show_result(self, guess, total, dice_values):
+        result = guess == total
+        if result:
+            result_text = "Congratulations! You won J$1000!"
+            result_color = (0, 255, 0)
+            if self.sounds['win']:
+                self.sounds['win'].play()
+            self.score = 1000
+        else:
+            result_text = f"Sorry! The sum was {total}. You guessed {guess}."
+            result_color = (255, 0, 0)
+            if self.sounds['lose']:
+                self.sounds['lose'].play()
+            self.score = 0
+
+        self.total_score += self.score
+        self.rounds_played += 1
+        self.scores.append(self.score)
+        self.high_score = max(self.high_score, self.score)
+
+        waiting = True
+        while waiting:
+            self.screen.blit(self.background, (0, 0))
+            for j in range(3):
+                self.screen.blit(self.dice_images[dice_values[j]-1], (200 + j*80, 150))
+
+            self.draw_text(f"Sum: {total}", 315, 220, (255, 255, 0))
+            self.draw_text(result_text, 315, 250, result_color, self.title_font)
+            continue_rect = self.draw_text("Continue", 315, 320, (255, 255, 255), self.title_font)
+            pygame.display.flip()
+
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    return False
+                if event.type == pygame.MOUSEBUTTONDOWN and continue_rect.collidepoint(event.pos):
+                    waiting = False
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_RETURN:
+                    waiting = False
+
+        return True
+
+    def show_stats_screen(self):
+        waiting = True
+        while waiting:
+            self.screen.blit(self.background, (0, 0))
+            self.draw_text("Game Statistics", 315, 50, (255, 255, 0), self.title_font)
+            y_pos = 100
+            stats = [
+                f"Rounds Played: {self.rounds_played}",
+                f"Total Score: J${self.total_score}",
+                f"High Score: J${self.high_score}",
+                f"Average Score: J${self.total_score / self.rounds_played:.2f}" if self.rounds_played > 0 else "Average Score: N/A"
+            ]
+            for stat in stats:
+                self.draw_text(stat, 315, y_pos)
+                y_pos += 40
+
+            back_rect = self.draw_text("Back to Game", 315, 300, (0, 255, 255), self.title_font)
+            pygame.display.flip()
+
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    return False
+                if event.type == pygame.MOUSEBUTTONDOWN and back_rect.collidepoint(event.pos):
+                    waiting = False
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                    waiting = False
+
+        return True
+
+    def show_main_menu(self):
+        waiting = True
+        choice = None
+        while waiting:
+            self.screen.blit(self.background, (0, 0))
+            self.draw_text("Dice Rolling Lottery", 315, 50, (255, 255, 0), self.title_font)
+            play_rect = self.draw_text("1. Play Round", 315, 150, (255, 255, 255), self.title_font)
+            stats_rect = self.draw_text("2. View Statistics", 315, 200, (255, 255, 255), self.title_font)
+            quit_rect = self.draw_text("3. Exit to Main Menu", 315, 250, (255, 255, 255), self.title_font)
+            pygame.display.flip()
+
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    return None
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    if play_rect.collidepoint(event.pos):
+                        choice = 1
+                        waiting = False
+                    elif stats_rect.collidepoint(event.pos):
+                        choice = 2
+                        waiting = False
+                    elif quit_rect.collidepoint(event.pos):
+                        choice = 3
+                        waiting = False
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_1:
+                        choice = 1
+                        waiting = False
+                    elif event.key == pygame.K_2:
+                        choice = 2
+                        waiting = False
+                    elif event.key == pygame.K_3 or event.key == pygame.K_ESCAPE:
+                        choice = 3
+                        waiting = False
+
+        return choice
+
+    def play(self):
+        self.initialize_pygame()
+        running = True
+        try:
+            while running:
+                choice = self.show_main_menu()
+                if choice == 1:
+                    if self.sounds['roll']:
+                        self.sounds['roll'].play()
+                    guess = self.get_user_guess()
+                    if guess is None:
+                        break
+                    total, dice_values = self.roll_dice()
+                    self.show_dice_animation(dice_values)
+                    if not self.show_result(guess, total, dice_values):
+                        break
+                elif choice == 2:
+                    if not self.show_stats_screen():
+                        break
+                elif choice == 3:
+                    break
+            return self.total_score
+        finally:
+            self.cleanup()
+def diceroll():
+    game = DiceRollingGame()
+    game.play()
 
 if __name__ == "__main__":
-    game = DiceGame()
-    game.run_game()
-    
-
+    game = DiceRollingGame()
+    game.play()
