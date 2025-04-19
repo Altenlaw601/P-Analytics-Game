@@ -1,3 +1,5 @@
+# Adrian lawrence
+# 1903014
 import pygame
 import random
 import sys
@@ -19,6 +21,7 @@ GREEN = (0, 255, 0)
 CYAN = (0, 255, 255)
 YELLOW = (255, 255, 0)
 BOSS_LASER_COLOR = (255, 100, 100)
+PURPLE = (128, 0, 128)
 
 # Utility functions for loading
 def load_image(path, size=None):
@@ -57,49 +60,52 @@ try:
 except:
     print("Background music failed to load.")
 
-# Game constants and initialization
-player = pygame.Rect(WIDTH // 2, HEIGHT - 60, 50, 50)
+# Game constants
 player_speed = 5
 bullet_speed = 7
 bullet_cooldown = 0.3
-last_bullet_time = 0
-
-bullets = []
-enemies = []
-score = 0
-player_health = 100
-boss = None
-boss_health = 100
-boss_direction = 1
 boss_speed = 3
-boss_bullets = []
 boss_attack_cooldown = 1.5
-last_boss_attack_time = 0
-
-# Power-up flag
-power_up_active = False
-
-# Dice mode flags
-last_dice_draw = 0
-dice_result = None
-dice_timer_start = 0
-
-# Stats
-damage_values = []
-
-# Fonts
-font = pygame.font.SysFont("arial", 32)
-
-# Clock
-clock = pygame.time.Clock()
 
 # Game states
+MENU = "menu"
 SPACE_MODE = "space"
 DICE_MODE = "dice"
 GAME_OVER = "over"
 VICTORY = "victory"
-game_mode = SPACE_MODE
 
+def reset_game():
+    global player, bullets, enemies, boss_bullets, player_health, score, boss, boss_health
+    global boss_direction, last_bullet_time, last_boss_attack_time, power_up_active
+    global last_dice_draw, dice_result, dice_timer_start, damage_values
+    
+    player = pygame.Rect(WIDTH // 2, HEIGHT - 60, 50, 50)
+    bullets = []
+    enemies = []
+    boss_bullets = []
+    player_health = 100
+    score = 0
+    boss = None
+    boss_health = 100
+    boss_direction = 1
+    last_bullet_time = 0
+    last_boss_attack_time = 0
+    power_up_active = False
+    last_dice_draw = 0
+    dice_result = None
+    dice_timer_start = 0
+    damage_values = []
+
+# Initialize game
+reset_game()
+
+# Fonts
+font = pygame.font.SysFont("arial", 32)
+title_font = pygame.font.SysFont("arial", 64, bold=True)
+
+# Clock
+clock = pygame.time.Clock()
+game_mode = MENU
 
 def draw_text(text, x, y, color=WHITE, font_size=32, center=True):
     font_obj = pygame.font.SysFont("arial", font_size)
@@ -111,22 +117,18 @@ def draw_text(text, x, y, color=WHITE, font_size=32, center=True):
         rect.topleft = (x, y)
     screen.blit(render, rect)
 
-
 def draw_player():
     if power_up_active:
         pygame.draw.ellipse(screen, YELLOW, player.inflate(20, 20), 3)
     screen.blit(player_img, player)
 
-
 def draw_health_bar(x, y, health, max_health):
     pygame.draw.rect(screen, RED, (x, y, 100, 10))
     pygame.draw.rect(screen, GREEN, (x, y, 100 * (health / max_health), 10))
 
-
 def spawn_enemy():
     x = random.randint(0, WIDTH - 40)
     return pygame.Rect(x, 0, 40, 40)
-
 
 def handle_dice_roll():
     global power_up_active, player_health
@@ -141,7 +143,6 @@ def handle_dice_roll():
     else:
         return d1, d2, total, "No bonus."
 
-
 def damage_player(dmg):
     global player_health, game_mode, power_up_active, damage_values
     if power_up_active:
@@ -151,7 +152,6 @@ def damage_player(dmg):
     damage_values.append(dmg)
     if player_health <= 0:
         game_mode = GAME_OVER
-
 
 def show_stats():
     if damage_values:
@@ -164,7 +164,6 @@ def show_stats():
         ]
         for i, text in enumerate(stats_texts):
             draw_text(text, WIDTH // 2, 400 + i * 30, font_size=24)
-
 
 def check_collisions():
     global enemies, bullets, score, boss_health, game_mode, boss, boss_bullets
@@ -200,22 +199,44 @@ def check_collisions():
                 boss_bullets.remove(bb)
                 damage_player(15)
 
+def draw_menu():
+    screen.blit(background_img, (0, 0))
+    draw_text("GALACTIC FORTUNE", WIDTH // 2, 150, PURPLE, 64)
+    draw_text("Press SPACE to Start", WIDTH // 2, 300, YELLOW, 36)
+    draw_text("Press ESC to Exit", WIDTH // 2, 350, WHITE, 36)
+    draw_text("Arrow Keys to Move", WIDTH // 2, 420, CYAN, 24)
+    draw_text("SPACE to Shoot", WIDTH // 2, 450, CYAN, 24)
+    draw_text("Roll 7 for bonus power-ups!", WIDTH // 2, 500, GREEN, 24)
 
 def main():
-    global bullets, last_bullet_time, enemies, score, boss, boss_health, boss_direction, last_dice_draw
-    global game_mode, dice_result, boss_bullets, last_boss_attack_time, dice_timer_start, power_up_active
+    global bullets, last_bullet_time, enemies, score, boss, boss_health, boss_direction
+    global last_boss_attack_time, game_mode, dice_result, dice_timer_start, power_up_active
+    global last_dice_draw
 
     running = True
     while running:
         screen.blit(background_img, (0, 0))
-        keys = pygame.key.get_pressed()
         current_time = time.time()
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    if game_mode in [SPACE_MODE, DICE_MODE, GAME_OVER, VICTORY]:
+                        game_mode = MENU
+                        reset_game()
+                    elif game_mode == MENU:
+                        running = False
 
-        if game_mode == SPACE_MODE:
+        if game_mode == MENU:
+            draw_menu()
+            keys = pygame.key.get_pressed()
+            if keys[pygame.K_SPACE]:
+                game_mode = SPACE_MODE
+
+        elif game_mode == SPACE_MODE:
+            keys = pygame.key.get_pressed()
             if keys[pygame.K_LEFT] and player.left > 0:
                 player.x -= player_speed
             if keys[pygame.K_RIGHT] and player.right < WIDTH:
@@ -253,9 +274,7 @@ def main():
                         boss_bullets.append(laser)
                         last_boss_attack_time = current_time
 
-            for bb in boss_bullets:
-                bb.y += 5
-            boss_bullets = [b for b in boss_bullets if b.y < HEIGHT]
+
 
             draw_player()
             for bullet in bullets:
@@ -271,6 +290,7 @@ def main():
 
             draw_text(f"Score: {score}", 20, 20, color=YELLOW, center=False, font_size=48)
             draw_health_bar(WIDTH - 120, 20, player_health, 100)
+            draw_text("ESC: Menu", WIDTH - 80, HEIGHT - 20, WHITE, 20)
 
             check_collisions()
 
@@ -295,11 +315,13 @@ def main():
         elif game_mode == GAME_OVER:
             draw_text("💀 GAME OVER 💀", WIDTH // 2, HEIGHT // 2, font_size=64)
             draw_text(f"Final Score: {score}", WIDTH // 2, HEIGHT // 2 + 50, font_size=48)
+            draw_text("Press ESC to return to Menu", WIDTH // 2, HEIGHT - 50, WHITE, 24)
             show_stats()
 
         elif game_mode == VICTORY:
             draw_text("🎉 YOU'VE CONQUERED THE GALAXY! 🎉", WIDTH // 2, HEIGHT // 2, font_size=48)
             draw_text(f"Final Score: {score}", WIDTH // 2, HEIGHT // 2 + 50, font_size=36)
+            draw_text("Press ESC to return to Menu", WIDTH // 2, HEIGHT - 50, WHITE, 24)
             show_stats()
 
         pygame.display.flip()
@@ -307,7 +329,6 @@ def main():
 
     pygame.quit()
     sys.exit()
-
 
 if __name__ == "__main__":
     main()
