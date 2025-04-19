@@ -1,4 +1,9 @@
-#Flloyd MUllings
+#Assignment: Programming for Data Analytics Final Project: Game of Dice
+# Name: Flloyd Mullings 9910966
+# Program Ojective: The program provides an application that provides the user with a game where three dice are
+#                   rolled and the total number generated is guessed to find winner if guessed number equals dice
+#                   roll.
+
 import random
 import statistics
 import pygame
