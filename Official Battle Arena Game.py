@@ -1,6 +1,7 @@
 #Gabrielle Levy
 #2102215
 #Battle Arena Game
+
 import pygame
 import random
 import statistics
@@ -24,11 +25,11 @@ pygame.display.set_caption("Battle Arena")
 font = pygame.font.SysFont("Arial", 20)
 clock = pygame.time.Clock()
 
-# Load Background
+
 background = pygame.image.load("assets/images/Background.png")  
 background = pygame.transform.scale(background, (WIDTH, HEIGHT))
 
-# Colors
+
 WHITE, BLACK, RED, GREEN, BLUE, YELLOW, PURPLE = (255,255,255), (0,0,0), (255,0,0), (0,255,0), (0,0,255), (255,255,0), (128,0,128)
 
 warrior_image = pygame.transform.scale(pygame.image.load("assets/images/warrior.png"), (50, 50))
@@ -113,7 +114,7 @@ def draw_fighter(x, y, fighter):
     else:
         image = warrior_image
 
-    # Draw white border before drawing image
+    
     border_thickness = 3
     border_rect = pygame.Rect(x - border_thickness, y - border_thickness,
                               image.get_width() + 2 * border_thickness,
